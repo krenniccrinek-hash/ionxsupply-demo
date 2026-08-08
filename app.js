@@ -840,7 +840,7 @@ function viewSuccess(seg) {
     <p style="margin:.4rem 0 1.4rem">${orders.length > 1 ? `One payment of <b>${money(total)}</b>, split across ${orders.length} sellers.` : `<b>${money(total)}</b> paid.`} Confirmation "sent" to ${esc(me().email)} (demo).</p></div>
     ${orders.map(o => `<div class="cart-group"><div class="cart-group-head"><b><a href="#/s/${sellerById(o.sellerId).slug}" style="color:inherit">${esc(sellerById(o.sellerId).name)}</a></b><span class="badge badge-verified" style="margin-left:auto">Paid</span></div>
       ${o.items.map(i => `<div class="cart-line" style="border:none;padding:.35rem 0"><span style="flex:1;font-size:.9rem">${i.qty}× ${esc(i.title)}</span><b>${money(i.price * i.qty)}</b></div>`).join('')}
-      <div class="totals">${o.discount ? `<div class="row disc"><span>Discount</span><span>−${money(o.discount)}</span></div>` : ''}<div class="row"><span>Seller receives (after 10% fee)</span><span>${money(o.total - o.fee)}</span></div></div></div>`).join('')}
+      <div class="totals">${o.discount ? `<div class="row disc"><span>Discount</span><span>−${money(o.discount)}</span></div>` : ''}<div class="row"><span>Order total${o.shipping ? ' (incl. shipping)' : ''}</span><span>${money(o.total)}</span></div></div></div>`).join('')}
     <div style="display:flex;gap:.7rem;justify-content:center;margin-top:1.2rem"><a class="btn btn-primary" href="#/orders">Track my orders</a><a class="btn btn-outline" href="#/search">Keep shopping</a></div></div>`;
 }
 
@@ -1299,12 +1299,14 @@ function viewAdmin(seg, q) {
       <span class="badge ${r.status === 'open' ? 'badge-danger' : r.status === 'resolved' ? 'badge-verified' : 'badge-gray'}">${r.status}</span>
       <span class="badge badge-warn">${r.reason.replace('_', ' ')}</span>${r.orderId ? '<span class="badge badge-gray">dispute</span>' : ''}
       ${flagged[r.sellerId] >= 2 ? '<span class="badge badge-danger">⚠ multiple open reports</span>' : ''}
-      <small style="margin-left:auto">${timeAgo(r.ts)} · by ${esc(userById(r.reporterId)?.name)}</small></div>
+      <small style="margin-left:auto">${timeAgo(r.ts)} · by ${esc(userById(r.reporterId)?.name)} · ${esc(userById(r.reporterId)?.email)}</small></div>
       <p>${esc(r.details)}</p>${r.resolution ? `<p style="font-size:.8rem;color:var(--aqua-deep)">↳ ${esc(r.resolution)}</p>` : ''}
-      ${r.status === 'open' ? `<div style="display:flex;gap:.5rem;margin-top:.5rem">
-        <button class="btn btn-aqua btn-sm" onclick="resolveReport('${r.id}','resolved')">Resolve</button>
+      ${(r.emailLog || []).map(e => `<p style="font-size:.75rem;color:var(--ink3)">📧 Emailed reporter ${timeAgo(e.ts)} — “${esc(e.subject)}”</p>`).join('')}
+      <div style="display:flex;gap:.5rem;margin-top:.5rem;flex-wrap:wrap">
+        ${r.status === 'open' ? `<button class="btn btn-aqua btn-sm" onclick="resolveReport('${r.id}','resolved')">Resolve</button>
         <button class="btn btn-outline btn-sm" onclick="resolveReport('${r.id}','dismissed')">Dismiss</button>
-        ${s?.status === 'active' ? `<button class="btn btn-danger btn-sm" onclick="suspendSeller('${s.id}')">Suspend seller</button>` : ''}</div>` : ''}</div>`;
+        ${s?.status === 'active' ? `<button class="btn btn-danger btn-sm" onclick="suspendSeller('${s.id}')">Suspend seller</button>` : ''}` : ''}
+        <button class="btn btn-outline btn-sm" onclick="emailReporter('${r.id}')">✉ Email reporter</button></div></div>`;
   }).join('') || '<p style="color:var(--ink3)">No reports. Suspiciously peaceful.</p>'}</div>` : ''}
   ${tab === 'sellers' ? `<div class="panel tbl-wrap"><table class="table"><tr><th>Seller</th><th>Rating</th><th>Items</th><th>GMV</th><th>Status</th><th></th></tr>
     ${DB.sellers.map(s => { const r = ratingOf(s.id); const g = DB.orders.filter(o => o.sellerId === s.id).reduce((t, o) => t + o.total, 0);
@@ -1329,8 +1331,36 @@ function reapplyAfterReject(appId) { DB.applications = DB.applications.filter(a 
 function resolveReport(id, status) {
   const r = DB.reports.find(x => x.id === id); r.status = status; r.resolvedTs = Date.now();
   r.resolution = status === 'resolved' ? 'Handled by trust team (demo).' : 'Reviewed — no policy violation found.';
+  if (status === 'resolved') {
+    const s = sellerById(r.sellerId), u = userById(r.reporterId);
+    reportEmail(id, `Your report about ${s?.name || 'a seller'} is resolved`,
+`Hi ${(u?.name || '').split(' ')[0] || 'there'},
+
+Good news — the report you filed about ${s?.name || 'the seller'} has been resolved by our trust team. Thanks for helping keep the marketplace honest.
+
+— IonxSupply Trust & Safety`);
+  }
   save(); render(); toast('Report ' + status + '.');
 }
+function reportEmail(id, subject, body) {
+  const r = DB.reports.find(x => x.id === id), u = userById(r.reporterId);
+  (r.emailLog = r.emailLog || []).push({ ts: Date.now(), subject, body });
+  save();
+  toast(`📧 <b>Email "sent"</b> (demo) to ${esc(u?.email)} — ${esc(subject)}`);
+}
+function emailReporter(id) {
+  const r = DB.reports.find(x => x.id === id), u = userById(r.reporterId), s = sellerById(r.sellerId);
+  modal(`${modalHead('Email ' + esc(u?.name || 'reporter'))}<div class="modal-body"><form class="form" onsubmit="event.preventDefault();doEmailReporter('${id}',this)">
+    <div class="field"><label>To</label><input value="${esc(u?.email || '')}" disabled></div>
+    <div class="field"><label>Subject</label><input name="subject" required value="Update on your report about ${esc(s?.name || 'a seller')}"></div>
+    <div class="field"><label>Message</label><textarea name="body" required rows="6">Hi ${esc((u?.name || '').split(' ')[0] || 'there')},
+
+Thanks for your report about ${esc(s?.name || 'the seller')}. Here's an update from the trust team:
+
+</textarea></div>
+    <button class="btn btn-primary">Send email</button></form></div>`);
+}
+function doEmailReporter(id, f) { closeModal(); reportEmail(id, f.subject.value.trim(), f.body.value.trim()); render(); }
 function suspendSeller(id) {
   const s = sellerById(id); if (!s) return;
   modal(`${modalHead('Suspend ' + esc(s.name))}<div class="modal-body"><form class="form" onsubmit="event.preventDefault();doSuspend('${id}',this)">
@@ -1340,6 +1370,15 @@ function suspendSeller(id) {
 }
 function doSuspend(id, f) {
   const s = sellerById(id); s.status = 'suspended'; s.suspendReason = f.reason.value.trim(); s.suspendedTs = Date.now();
+  DB.reports.filter(r => r.sellerId === id && r.status === 'open').forEach(r => {
+    const u = userById(r.reporterId);
+    reportEmail(r.id, `Action taken on your report: ${s.name} suspended`,
+`Hi ${(u?.name || '').split(' ')[0] || 'there'},
+
+Following your report, ${s.name} has been suspended and their listings removed market-wide while we investigate. Thanks for flagging it.
+
+— IonxSupply Trust & Safety`);
+  });
   save(); closeModal(); render(); toast('<b>Seller suspended.</b> Listings hidden market-wide.', 'err');
 }
 function unsuspendSeller(id) { const s = sellerById(id); s.status = 'active'; delete s.suspendReason; save(); render(); toast('Seller reinstated.'); }

@@ -85,7 +85,7 @@ function toast(msg, type = 'ok') {
   t.className = 'toast ' + type;
   t.innerHTML = msg;
   $('#toasts').appendChild(t);
-  setTimeout(() => { t.style.transition = 'opacity .4s, transform .4s'; t.style.opacity = '0'; t.style.transform = 'translateY(8px)'; }, 3200);
+  setTimeout(() => { t.style.transition = 'opacity .4s, transform .4s'; t.style.opacity = '0'; t.style.transform = 'translateX(14px)'; }, 3200);
   setTimeout(() => t.remove(), 3700);
 }
 

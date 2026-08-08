@@ -53,7 +53,7 @@ input,select,textarea{font:inherit;color:var(--ink)}
 @keyframes shimmer{to{transform:translateX(100%)}}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes popHeart{0%{transform:scale(1)}40%{transform:scale(1.45)}100%{transform:scale(1)}}
-@keyframes toastIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes toastIn{from{opacity:0;transform:translateX(calc(100% + 1.4rem))}to{opacity:1;transform:none}}
 @keyframes pulseDot{0%,100%{opacity:.4}50%{opacity:1}}
 
 .view-enter{animation:fadeUp .5s var(--ease) both}
@@ -531,7 +531,7 @@ input[type=color]{width:46px;height:34px;padding:2px;border:1.5px solid var(--li
 .modal-lg{max-width:680px}
 
 /* ---------- toasts ---------- */
-.toasts{position:fixed;bottom:1.2rem;right:1.2rem;z-index:120;display:flex;flex-direction:column;gap:.6rem;max-width:340px}
+.toasts{position:fixed;top:6.2rem;right:1.2rem;z-index:120;display:flex;flex-direction:column;gap:.6rem;max-width:340px}
 .toast{background:var(--dark);color:#fff;border-radius:13px;padding:.8rem 1.05rem;font-size:.87rem;box-shadow:var(--shadow-lg);display:flex;gap:.6rem;align-items:start;animation:toastIn .35s var(--ease) both}
 .toast.ok{border-left:3px solid var(--aqua)}
 .toast.err{border-left:3px solid var(--danger)}
