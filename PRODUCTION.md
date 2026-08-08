@@ -47,7 +47,7 @@ Every table has Row-Level Security **on**, default-deny, with explicit policies:
 Even if the frontend is fully compromised, the DB refuses illegal writes.
 
 ### 3.2 Money flow (Stripe Connect escrow)
-- Checkout creates a **PaymentIntent** server-side with `amount` recomputed from the DB (never trust the client's cart total) + `application_fee_amount` (the 6.7%) + `transfer_data.destination = seller_stripe_account`.
+- Checkout creates a **PaymentIntent** server-side with `amount` recomputed from the DB (never trust the client's cart total) + `application_fee_amount` (the 10%) + `transfer_data.destination = seller_stripe_account`.
 - Funds are **held by the platform**; the transfer to the seller is released only when the order hits `fulfilled` (tracking added) and the dispute window closes — a cron job, not a button.
 - **Webhooks are the source of truth.** `payment_intent.succeeded` → mark order paid; `charge.dispute.created` → freeze payout. Every webhook **verifies the Stripe signature** (`STRIPE_WEBHOOK_SECRET`) and is **idempotent** (store processed event ids) so a replayed event can't double-pay.
 - Payout holds + velocity limits on new sellers; manual review over a threshold. This is the core "don't lose a ton of money" control.

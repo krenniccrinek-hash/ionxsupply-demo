@@ -4,9 +4,9 @@
 const DBKEY = 'ionxsupply_db_v1';
 let DB;
 try { DB = JSON.parse(localStorage.getItem(DBKEY)) || null; } catch (e) { DB = null; }
-if (!DB || DB.v !== 4) {
+if (!DB || DB.v !== 5) {
   DB = seedDB();
-  DB.v = 4;
+  DB.v = 5;
   DB.products.forEach(p => { p.img = 'img/' + p.id + '.jpg'; });  // real CC-licensed photos; partArt() SVG is the onerror fallback
   const _sc = DB.products.find(p => p.id === 'p_bbshd'); if (_sc) _sc.imgs = ['img/p_bbshd.jpg', 'img/p_torque.jpg', 'img/p_kt35.jpg'];  // demo multi-photo gallery
   DB.guestCart = { items: [], codes: {} };
@@ -55,7 +55,7 @@ const PRESET_GRADIENTS = [
 const gradColors = (str) => { const m = (str || '').match(/#[0-9a-f]{6}/gi); return m && m.length >= 2 ? [m[0], m[1]] : ['#2f3136', '#6b6f76']; };
 
 /* ================= pricing (same contract as the build plan) ================= */
-const FEE_RATE = 0.067, FEE_MIN = 50;
+const FEE_RATE = 0.10, FEE_MIN = 50;
 function priceGroup(items, code) {
   const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
   const shipping = items.reduce((s, i) => s + i.ship * i.qty, 0);
@@ -304,8 +304,8 @@ function viewHome() {
     <section class="section"><div class="section-head reveal"><div><h2>Shop by bike</h2><p>Parts filtered to what actually fits</p></div></div>
       <div class="hero-chips" style="justify-content:flex-start">${allBikesSorted().map(b => `<button class="chip reveal" onclick="go('#/bike/${b.id}')">${b.brand} ${b.model}</button>`).join('')}</div></section>
     <section class="section"><div class="band reveal"><h2>Turn your parts bin into a storefront.</h2>
-      <p>Your own shop at <b>yourname.ionxsupply.example</b>, discount codes, dashboards and payouts — we take 6.7% only when you sell.</p>
-      <div class="stats"><div><b data-count="${DB.products.reduce((s, p) => s + p.sold, 0)}"></b><span>parts sold</span></div><div><b data-count="${DB.reviews.length}"></b><span>verified reviews</span></div><div><b>6.7%</b><span>flat fee, listing is free</span></div></div>
+      <p>Your own shop at <b>yourname.ionxsupply.example</b>, discount codes, dashboards and payouts — we take 10% only when you sell.</p>
+      <div class="stats"><div><b data-count="${DB.products.reduce((s, p) => s + p.sold, 0)}"></b><span>parts sold</span></div><div><b data-count="${DB.reviews.length}"></b><span>verified reviews</span></div><div><b>10%</b><span>flat fee, listing is free</span></div></div>
       <a class="btn btn-aqua btn-lg" href="#/sell">Apply to sell →</a></div></section>
     <section class="section"><div class="section-head reveal"><div><h2>Top-rated sellers</h2></div><a class="see-all" href="#/sellers">Directory →</a></div>
       <div class="grid grid-sellers">${tops.map(({ s, r }) => sCard(s, r)).join('')}</div></section>
@@ -611,17 +611,17 @@ function viewSell() {
   <div class="step-cards reveal">
     <div class="step-card"><div class="num">1</div><b>Apply in 2 minutes</b><p>Tell us what you sell. We review every application — that's why buyers trust the marketplace.</p></div>
     <div class="step-card"><div class="num">2</div><b>Verify & connect payouts</b><p>Stripe identity check + bank connection. You're the merchant; we handle checkout and protection.</p></div>
-    <div class="step-card"><div class="num">3</div><b>List & sell</b><p>Photos, specs, fitment tags, your own codes. Listing is free — we take 6.7% only when you sell.</p></div></div>
+    <div class="step-card"><div class="num">3</div><b>List & sell</b><p>Photos, specs, fitment tags, your own codes. Listing is free — we take 10% only when you sell.</p></div></div>
   <section class="section"><div class="browse cols-even">
     <div class="fee-calc reveal"><h3 style="margin-bottom:.3rem">What you'd keep</h3><p style="font-size:.85rem;color:var(--ink3)">Drag your monthly parts sales:</p>
       <input type="range" min="100" max="10000" value="1500" step="100" oninput="feeCalc(this.value)">
       <div class="fee-out"><span>Monthly sales</span><b id="fc-gross">$1,500</b></div>
-      <div class="fee-out"><span>IonxSupply fee (6.7%)</span><b id="fc-fee">−$101</b></div>
-      <div class="fee-out" style="border-top:1.5px solid var(--line);padding-top:.5rem"><span>You keep</span><b id="fc-net" style="color:var(--aqua-deep)">$1,399</b></div>
+      <div class="fee-out"><span>IonxSupply fee (10%)</span><b id="fc-fee">−$150</b></div>
+      <div class="fee-out" style="border-top:1.5px solid var(--line);padding-top:.5rem"><span>You keep</span><b id="fc-net" style="color:var(--aqua-deep)">$1,350</b></div>
       <p style="font-size:.75rem;color:var(--ink3);margin-top:.6rem">Payment processing included. No listing fees, no monthly fees.</p></div>
     <div class="accordion reveal">${[
       ['Who can sell?', 'Individuals and shops, 18+. We review every application for inventory quality and honesty — takeoff parts, used gear and rebuilt components are all welcome if graded honestly.'],
-      ['How do payouts work?', 'Through Stripe Connect. Money from each sale (minus the 6.7% fee) transfers to your bank on a rolling schedule after fulfillment.'],
+      ['How do payouts work?', 'Through Stripe Connect. Money from each sale (minus the 10% fee) transfers to your bank on a rolling schedule after fulfillment.'],
       ['Can I sell batteries?', 'Yes, with rules: UN38.3 documentation, declared certification status, ground shipping. Read the battery policy before applying.'],
       ['What about scam protection?', 'Cuts both ways. Buyers get dispute mediation; sellers with tracking and honest photos win not-as-described claims. Repeat bad actors get suspended.'],
       ['Do I really get my own subdomain?', 'Yes — yourshop.ionxsupply.example (simulated in this demo, real wildcard domains in production). Your storefront, your branding, your codes.'],
@@ -658,8 +658,8 @@ function viewSell() {
 }
 function feeCalc(v) {
   $('#fc-gross').textContent = '$' + (+v).toLocaleString();
-  $('#fc-fee').textContent = '−$' + Math.round(v * .067).toLocaleString();
-  $('#fc-net').textContent = '$' + (+v - Math.round(v * .067)).toLocaleString();
+  $('#fc-fee').textContent = '−$' + Math.round(v * FEE_RATE).toLocaleString();
+  $('#fc-net').textContent = '$' + (+v - Math.round(v * FEE_RATE)).toLocaleString();
 }
 function slugify(str) { return (str || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24); }
 function normWebsite(u) {
@@ -840,7 +840,7 @@ function viewSuccess(seg) {
     <p style="margin:.4rem 0 1.4rem">${orders.length > 1 ? `One payment of <b>${money(total)}</b>, split across ${orders.length} sellers.` : `<b>${money(total)}</b> paid.`} Confirmation "sent" to ${esc(me().email)} (demo).</p></div>
     ${orders.map(o => `<div class="cart-group"><div class="cart-group-head"><b><a href="#/s/${sellerById(o.sellerId).slug}" style="color:inherit">${esc(sellerById(o.sellerId).name)}</a></b><span class="badge badge-verified" style="margin-left:auto">Paid</span></div>
       ${o.items.map(i => `<div class="cart-line" style="border:none;padding:.35rem 0"><span style="flex:1;font-size:.9rem">${i.qty}× ${esc(i.title)}</span><b>${money(i.price * i.qty)}</b></div>`).join('')}
-      <div class="totals">${o.discount ? `<div class="row disc"><span>Discount</span><span>−${money(o.discount)}</span></div>` : ''}<div class="row"><span>Seller receives (after 6.7% fee)</span><span>${money(o.total - o.fee)}</span></div></div></div>`).join('')}
+      <div class="totals">${o.discount ? `<div class="row disc"><span>Discount</span><span>−${money(o.discount)}</span></div>` : ''}<div class="row"><span>Seller receives (after 10% fee)</span><span>${money(o.total - o.fee)}</span></div></div></div>`).join('')}
     <div style="display:flex;gap:.7rem;justify-content:center;margin-top:1.2rem"><a class="btn btn-primary" href="#/orders">Track my orders</a><a class="btn btn-outline" href="#/search">Keep shopping</a></div></div>`;
 }
 
@@ -949,7 +949,7 @@ function viewDashboard(seg, q) {
   ${s.status === 'suspended' ? `<div class="notice" style="background:#fdeaea;border-color:#f0c9c9;color:var(--danger)">🚫 <b>Your shop is suspended.</b> ${s.suspendReason ? 'Reason: ' + esc(s.suspendReason) + '. ' : ''}Your storefront and listings are hidden market-wide — reply to the trust team to appeal.</div>` : ''}
   ${tab === 'overview' ? `
     <div class="stat-grid">
-      <div class="stat"><b data-count="${Math.round(rev / 100)}" data-prefix="$"></b><span>Net revenue (after 6.7% fee)</span></div>
+      <div class="stat"><b data-count="${Math.round(rev / 100)}" data-prefix="$"></b><span>Net revenue (after 10% fee)</span></div>
       <div class="stat"><b data-count="${myO.length}"></b><span>Orders</span></div>
       <div class="stat"><b data-count="${myP.reduce((t, p) => t + p.sold, 0)}"></b><span>Items sold</span></div>
       <div class="stat"><b>${r.avg ? r.avg.toFixed(1) + '★' : '—'}</b><span>${r.count} reviews</span></div>
