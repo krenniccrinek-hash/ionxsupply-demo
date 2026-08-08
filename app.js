@@ -67,8 +67,9 @@ function priceGroup(items, code) {
   return { subtotal, discount, shipping, total, fee };
 }
 function validateCode(sellerId, str, subtotal) {
-  if (!str) return { ok: false, msg: '' };
-  const c = DB.codes.find(x => x.sellerId === sellerId && x.code.toUpperCase() === str.trim().toUpperCase());
+  if (!str || !str.trim()) return { ok: false, msg: '' };
+  const matches = DB.codes.filter(x => x.sellerId === sellerId && x.code.toUpperCase() === str.trim().toUpperCase());
+  const c = matches.find(x => x.active) || matches[0];
   if (!c || !c.active) return { ok: false, msg: 'Code not found for this seller.' };
   if (c.expires && c.expires < Date.now()) return { ok: false, msg: 'This code has expired.' };
   if (c.max != null && c.uses >= c.max) return { ok: false, msg: 'This code hit its usage limit.' };
@@ -230,10 +231,11 @@ function doSignup(f) {
   DB.users.push(u); loginAs(u, true);
 }
 function loginAs(u, fresh = false) {
-  // merge guest cart
+  // merge guest cart (skip products that vanished; clamp to current stock)
   DB.guestCart.items.forEach(gi => {
+    const p = productById(gi.pid); if (!p || p.qty <= 0) return;
     const ex = u.cart.items.find(i => i.pid === gi.pid);
-    if (ex) ex.qty = Math.min(ex.qty + gi.qty, productById(gi.pid).qty); else u.cart.items.push(gi);
+    if (ex) ex.qty = Math.min(ex.qty + gi.qty, p.qty); else u.cart.items.push({ ...gi, qty: Math.min(gi.qty, p.qty) });
   });
   DB.guestCart = { items: [], codes: {} };
   DB.session = u.id; save(); closeModal(); render();
@@ -347,8 +349,8 @@ function viewSearch(seg, q) {
   if (f.cond) list = list.filter(p => p.cond === f.cond);
   if (f.bike) list = list.filter(p => p.universal || p.fits.includes(f.bike));
   if (f.seller) list = list.filter(p => p.sellerId === f.seller);
-  if (f.min) list = list.filter(p => p.price >= f.min * 100);
-  if (f.max) list = list.filter(p => p.price <= f.max * 100);
+  if (f.min && !isNaN(+f.min)) list = list.filter(p => p.price >= f.min * 100);
+  if (f.max && !isNaN(+f.max)) list = list.filter(p => p.price <= f.max * 100);
   if (f.sort === 'low') list.sort((a, b) => a.price - b.price);
   else if (f.sort === 'high') list.sort((a, b) => b.price - a.price);
   else if (f.sort === 'new') list.sort((a, b) => b.ts - a.ts);
@@ -404,7 +406,7 @@ function viewProduct(seg) {
   const pReviews = DB.reviews.filter(x => x.productId === p.id && !x.hidden).sort((a, b) => b.ts - a.ts);
   const pAvg = pReviews.length ? pReviews.reduce((t, rv) => t + rv.rating, 0) / pReviews.length : 0;
   return `<div class="wrap">
-  <div class="crumb"><a href="#/">Home</a> / <a href="#/search?cat=${p.cat}">${catById(p.cat)?.name}</a> / ${esc(p.title.slice(0, 40))}…</div>
+  <div class="crumb"><a href="#/">Home</a> / <a href="#/search?cat=${p.cat}">${catById(p.cat)?.name}</a> / ${esc(p.title.slice(0, 40))}${p.title.length > 40 ? '…' : ''}</div>
   <div class="pd">
     <div class="reveal in">
       <div class="pd-gallery" id="pd-main">${productArt(p)}</div>
@@ -417,7 +419,8 @@ function viewProduct(seg) {
       <div class="rating-line">${stars(r.avg)} <b>${r.avg ? r.avg.toFixed(1) : '—'}</b> seller rating (${r.count}) · ${p.sold} sold · ${p.views} views</div>
       <div style="margin-top: .9rem"><span class="pd-price">${money(p.price)}</span>
         <div class="pd-ship-line">${p.ship ? `+ ${money(p.ship)} shipping` : '✅ Free shipping'} · ships from ${esc(s.name)}</div></div>
-      ${suspended ? `<div class="notice">This seller is currently suspended — item unavailable.</div>` : (p.qty <= 0 ? `
+      ${suspended ? `<div class="notice">This seller is currently suspended — item unavailable.</div>`
+      : (mySeller() && mySeller().id === p.sellerId) ? `<div class="notice">🏪 This is your listing. <a href="#/dashboard?tab=products">Manage it in your dashboard →</a></div>` : (p.qty <= 0 ? `
       <div class="pd-buy">
         <button class="btn btn-primary btn-lg" style="flex:1" onclick="notifyMe('${p.id}')">🔔 Notify me when it's back</button>
         <button class="btn btn-outline ${wished ? 'on' : ''}" onclick="toggleWish('${p.id}')" aria-label="Watchlist">${icon('heart')}</button>
@@ -505,11 +508,16 @@ function reviewSummary(list) {
 }
 function submitProductReview(f, pid, sellerId) {
   if (!requireAuth()) return;
+  if (mySeller() && mySeller().id === sellerId) { toast(`You can't review your own shop.`, 'err'); return; }
   const rating = Math.max(1, Math.min(5, parseInt(f.rating.value) || 5));
   const body = f.body.value.trim(); if (!body) return;
   let photos = []; try { photos = JSON.parse(f.photos.value || '[]'); } catch (e) {}
-  DB.reviews.push({ id: uid('rv'), sellerId, productId: pid, buyerId: me().id, rating, body, photos: photos.slice(0, 4), verified: false, hidden: false, ts: Date.now() });
-  save(); render(); toast('<b>Review posted.</b> Thanks for the feedback!');
+  const bought = DB.orders.some(o => o.buyerId === me().id && o.sellerId === sellerId && ['paid', 'shipped', 'delivered'].includes(o.status) && (!pid || o.items.some(i => i.pid === pid)));
+  // one review per buyer per listing (or per shop for storefront reviews) — resubmitting updates it
+  const ex = DB.reviews.find(r => r.buyerId === me().id && r.sellerId === sellerId && (r.productId || '') === (pid || '') && !r.orderId);
+  if (ex) Object.assign(ex, { rating, body, photos: photos.slice(0, 4), verified: bought, ts: Date.now() });
+  else DB.reviews.push({ id: uid('rv'), sellerId, productId: pid, buyerId: me().id, rating, body, photos: photos.slice(0, 4), verified: bought, hidden: false, ts: Date.now() });
+  save(); render(); toast(ex ? '<b>Review updated.</b>' : '<b>Review posted.</b> Thanks for the feedback!');
 }
 function storeReviewFormHTML(s) {
   if (mySeller() && mySeller().id === s.id) return '';
@@ -574,6 +582,8 @@ function viewStore(seg, q) {
 }
 function openReport(sellerId) {
   if (!requireAuth()) return;
+  if (mySeller() && mySeller().id === sellerId) { toast(`That's your own shop.`, 'err'); return; }
+  if (DB.reports.some(r => r.sellerId === sellerId && r.reporterId === me().id && r.status === 'open' && !r.orderId)) { toast('You already have an open report on this seller — our trust team is on it.', 'err'); return; }
   const s = sellerById(sellerId);
   modal(`${modalHead('Report ' + esc(s.name))}<div class="modal-body"><form class="form" onsubmit="event.preventDefault();submitReport(this,'${sellerId}')">
     <div class="field"><label>What happened?</label><select name="reason" required>
@@ -690,14 +700,34 @@ function approveApplication(appId, self = false) {
 
 /* ---------- cart & drawer ---------- */
 function addToCart(pid, qty = 1) {
-  const p = productById(pid); if (!p) return;
+  const p = productById(pid); if (!p) { toast('That listing is no longer available.', 'err'); return; }
+  if (!sellerActive(p.sellerId)) { toast('This seller is suspended — item unavailable.', 'err'); return; }
+  if (mySeller() && mySeller().id === p.sellerId) { toast(`That's your own listing — you can't buy from your own shop.`, 'err'); return; }
+  qty = Math.max(1, parseInt(qty) || 1);
   const cart = cartOf();
   const ex = cart.items.find(i => i.pid === pid);
   const cur = ex ? ex.qty : 0;
-  if (cur + qty > p.qty) { toast(`Only ${p.qty} in stock.`, 'err'); return; }
+  if (p.qty <= 0) { toast('Out of stock.', 'err'); return; }
+  if (cur + qty > p.qty) { toast(`Only ${p.qty} in stock${cur ? ` — you already have ${cur} in your cart` : ''}.`, 'err'); return; }
   if (ex) ex.qty += qty; else cart.items.push({ pid, qty });
   save(); renderNav(); showCartDrawer();
-  toast(`<b>Added:</b> ${esc(p.title.slice(0, 40))}…`);
+  toast(`<b>Added:</b> ${esc(p.title.slice(0, 40))}${p.title.length > 40 ? '…' : ''}`);
+}
+/* Drop vanished/suspended/out-of-stock items and clamp quantities to live stock.
+   Returns messages describing what changed so callers can surface them. */
+function reconcileCart() {
+  const cart = cartOf(), notes = [];
+  cart.items = cart.items.filter(i => {
+    const p = productById(i.pid);
+    if (!p || !sellerActive(p.sellerId) || p.qty <= 0) {
+      notes.push(`<b>${esc((p ? p.title : 'An item').slice(0, 40))}</b> is no longer available — removed from your cart.`);
+      return false;
+    }
+    if (i.qty > p.qty) { notes.push(`<b>${esc(p.title.slice(0, 40))}</b>: only ${p.qty} left — quantity adjusted.`); i.qty = p.qty; }
+    return true;
+  });
+  if (notes.length) { save(); renderNav(); notes.forEach(n => toast(n, 'err')); }
+  return notes;
 }
 function setCartQty(pid, qty) {
   const cart = cartOf(); const it = cart.items.find(i => i.pid === pid); if (!it) return;
@@ -716,6 +746,7 @@ function cartGroups() {
   return groups;
 }
 function showCartDrawer() {
+  reconcileCart();
   const groups = cartGroups();
   const all = Object.values(groups).flat();
   const sub = all.reduce((s, i) => s + i.price * i.qty, 0);
@@ -730,6 +761,7 @@ function showCartDrawer() {
   openDrawer();
 }
 function viewCart() {
+  reconcileCart();
   const groups = cartGroups(); const cart = cartOf();
   const ids = Object.keys(groups);
   if (!ids.length) return `<div class="wrap"><div class="empty"><div class="big">🛒</div><b>Your cart is empty.</b><p><a href="#/search">Browse parts →</a></p></div></div>`;
@@ -746,7 +778,7 @@ function viewCart() {
         <div style="flex:1"><b>${esc(i.title)}</b><small>${money(i.price)} each · ${i.ship ? money(i.ship) + ' ship' : 'free ship'}</small>
         <div class="qty" style="margin-top:.3rem;height:28px;display:inline-flex"><button onclick="setCartQty('${i.pid}',${i.qty - 1})">−</button><span style="font-size:.8rem">${i.qty}</span><button onclick="setCartQty('${i.pid}',${i.qty + 1})">+</button></div></div>
         <b>${money(i.price * i.qty)}</b></div>`).join('')}
-      ${applied.ok ? `<div class="code-applied">🎟️ ${cart.codes[sid].toUpperCase()} — ${money(pr.discount)} off <button style="color:var(--aqua-deep);text-decoration:underline;font-size:.75rem" onclick="removeCode('${sid}')">remove</button></div>`
+      ${applied.ok ? `<div class="code-applied">🎟️ ${esc(cart.codes[sid].toUpperCase())} — ${money(pr.discount)} off <button style="color:var(--aqua-deep);text-decoration:underline;font-size:.75rem" onclick="removeCode('${sid}')">remove</button></div>`
       : `<div class="code-input"><input id="code-${sid}" placeholder="Seller discount code" value="${esc(cart.codes[sid] || '')}"><button class="btn btn-outline btn-sm" onclick="applyCode('${sid}')">Apply</button></div>
          ${cart.codes[sid] && !applied.ok && applied.msg ? `<div class="form-err" style="margin-top:.5rem">${applied.msg}</div>` : ''}`}
       <div class="totals" style="margin-top:.7rem"><div class="row"><span>Items</span><span>${money(pr.subtotal)}</span></div>
@@ -765,10 +797,12 @@ function viewCart() {
     </div></div>`;
 }
 function applyCode(sid) {
-  const v = $('#code-' + sid).value; cartOf().codes[sid] = v; save();
+  const v = ($('#code-' + sid).value || '').trim();
+  if (!v) return;
+  cartOf().codes[sid] = v; save();
   const items = cartGroups()[sid] || [];
   const res = validateCode(sid, v, items.reduce((t, i) => t + i.price * i.qty, 0));
-  if (res.ok) toast(`<b>${v.toUpperCase()}</b> applied ✓`); else toast(res.msg || 'Invalid code', 'err');
+  if (res.ok) toast(`<b>${esc(v.toUpperCase())}</b> applied ✓`); else toast(res.msg || 'Invalid code', 'err');
   render();
 }
 function removeCode(sid) { delete cartOf().codes[sid]; save(); render(); }
@@ -776,6 +810,7 @@ function removeCode(sid) { delete cartOf().codes[sid]; save(); render(); }
 /* ---------- checkout ---------- */
 function viewCheckout() {
   if (!me()) { openAuth(); return viewCart(); }
+  reconcileCart();
   const groups = cartGroups(); if (!Object.keys(groups).length) return viewCart();
   const cart = cartOf();
   let grand = 0;
@@ -810,6 +845,9 @@ function viewCheckout() {
 function doPay(f) {
   const btn = $('#pay-btn'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Processing…';
   setTimeout(() => {
+    // final stock check — the cart may have gone stale since it was rendered
+    if (reconcileCart().length) { toast('Your cart changed — totals updated, review and pay again.', 'err'); render(); return; }
+    if (!cartOf().items.length) { render(); return; }
     const cart = cartOf(), groups = cartGroups(), groupId = uid('g');
     const address = { name: f.name.value, line1: f.line1.value, city: f.city.value, state: f.state.value, zip: f.zip.value };
     const orderIds = [];
@@ -824,7 +862,7 @@ function doPay(f) {
         shipping: pr.shipping, total: pr.total, fee: pr.fee, status: 'paid',
         tracking: null, ts: Date.now(), shippedTs: null, deliveredTs: null, address };
       DB.orders.push(o); orderIds.push(o.id);
-      items.forEach(i => { const p = productById(i.pid); p.qty -= i.qty; p.sold += i.qty; });
+      items.forEach(i => { const p = productById(i.pid); if (p) { p.qty = Math.max(0, p.qty - i.qty); p.sold += i.qty; } });
       if (code) code.uses++;
     });
     cart.items = []; cart.codes = {}; save();
@@ -891,8 +929,9 @@ function openReview(oid) {
     <button class="btn btn-primary">Post review</button></form></div>`);
 }
 function submitReview(f, oid) {
-  const o = DB.orders.find(x => x.id === oid);
-  DB.reviews.push({ id: uid('r'), orderId: oid, sellerId: o.sellerId, buyerId: me().id, rating: +f.rating.value, body: f.body.value, ts: Date.now() });
+  const o = DB.orders.find(x => x.id === oid); if (!o) { closeModal(); return; }
+  if (DB.reviews.some(r => r.orderId === oid)) { closeModal(); toast('This order is already reviewed.', 'err'); return; }
+  DB.reviews.push({ id: uid('r'), orderId: oid, sellerId: o.sellerId, buyerId: me().id, rating: +f.rating.value, body: f.body.value, verified: true, ts: Date.now() });
   save(); closeModal(); render(); toast('<b>Review posted.</b> Thanks for keeping the market honest.');
 }
 function openDispute(oid) {
@@ -904,7 +943,8 @@ function openDispute(oid) {
     <button class="btn btn-primary">Open dispute</button></form></div>`);
 }
 function submitDispute(f, oid) {
-  const o = DB.orders.find(x => x.id === oid);
+  const o = DB.orders.find(x => x.id === oid); if (!o) { closeModal(); return; }
+  if (DB.reports.some(r => r.orderId === oid && r.status === 'open')) { closeModal(); toast('A dispute is already open on this order.', 'err'); return; }
   DB.reports.push({ id: uid('rp'), sellerId: o.sellerId, reporterId: me().id, orderId: oid, reason: f.reason.value, details: f.details.value, status: 'open', ts: Date.now(), resolvedTs: null, resolution: null });
   save(); closeModal(); render(); toast('<b>Dispute opened.</b> Our trust team is on it.');
 }
@@ -965,7 +1005,7 @@ function viewDashboard(seg, q) {
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem"><h2 style="font-size:1.15rem">Discount codes</h2><button class="btn btn-primary" onclick="openCodeForm()">+ New code</button></div>
     <div class="tbl-wrap panel"><table class="table"><tr><th>Code</th><th>Discount</th><th>Min order</th><th>Used</th><th>Status</th><th></th></tr>
       ${myC.map(c => { const dead = !c.active || (c.expires && c.expires < Date.now()) || (c.max != null && c.uses >= c.max);
-        return `<tr><td><b>${c.code}</b></td><td>${c.type === 'percent' ? c.value + '%' : money(c.value)}</td><td>${c.min ? money(c.min) : '—'}</td>
+        return `<tr><td><b>${esc(c.code)}</b></td><td>${c.type === 'percent' ? c.value + '%' : money(c.value)}</td><td>${c.min ? money(c.min) : '—'}</td>
         <td>${c.uses}${c.max != null ? '/' + c.max : ''}</td><td>${dead ? '<span class="badge badge-gray">inactive</span>' : '<span class="badge badge-verified">live</span>'}</td>
         <td><button class="btn btn-ghost btn-sm" onclick="toggleCode('${c.id}')">${c.active ? 'Disable' : 'Enable'}</button></td></tr>`; }).join('') || '<tr><td colspan="6" style="color:var(--ink3)">No codes yet — private promo codes you share yourself.</td></tr>'}</table></div>` : ''}
   ${tab === 'orders' ? `<div class="panel tbl-wrap">${myO.length ? sellerOrderRows(myO) : '<p style="color:var(--ink3)">No orders yet.</p>'}</div>` : ''}
@@ -982,7 +1022,7 @@ function viewDashboard(seg, q) {
 function sellerOrderRows(list) {
   return `<table class="table"><tr><th>Order</th><th>Items</th><th>Buyer pays</th><th>You get</th><th>Status</th><th></th></tr>
   ${list.map(o => `<tr><td style="font-size:.78rem">${o.id.slice(0, 8)}<br><span style="color:var(--ink3)">${timeAgo(o.ts)}</span></td>
-    <td style="max-width:240px;font-size:.83rem">${o.items.map(i => `${i.qty}× ${esc(i.title.slice(0, 34))}…`).join('<br>')}</td>
+    <td style="max-width:240px;font-size:.83rem">${o.items.map(i => `${i.qty}× ${esc(i.title.slice(0, 34))}${i.title.length > 34 ? '…' : ''}`).join('<br>')}</td>
     <td>${money(o.total)}</td><td><b>${money(o.total - o.fee)}</b></td>
     <td><span class="badge ${o.status === 'delivered' ? 'badge-verified' : 'badge-gray'}">${o.status}</span></td>
     <td>${o.status === 'paid' ? `<button class="btn btn-aqua btn-sm" onclick="openShip('${o.id}')">Mark shipped</button>` : (o.tracking ? `<span style="font-size:.72rem;color:var(--ink3)">${esc(o.tracking.slice(0, 18))}…</span>` : '')}</td></tr>`).join('')}</table>`;
@@ -1014,7 +1054,13 @@ function notifyMe(pid) {
   if (!u.stockAlerts.includes(pid)) u.stockAlerts.push(pid);
   save(); toast('<b>We\'ll let you know.</b> You\'ll get an email the moment it\'s back in stock (demo).');
 }
-function saveShop(f) { const s = mySeller(); s.name = f.name.value; s.tagline = f.tagline.value; s.bio = f.bio.value; s.website = normWebsite(f.website && f.website.value); save(); render(); toast('Shop settings saved.'); }
+function saveShop(f) {
+  const s = mySeller(); if (!s) return;
+  const name = f.name.value.trim();
+  if (!name) { toast('Shop name can\'t be empty.', 'err'); return; }
+  s.name = name; s.tagline = f.tagline.value.trim(); s.bio = f.bio.value.trim(); s.website = normWebsite(f.website && f.website.value);
+  save(); render(); toast('Shop settings saved.');
+}
 
 /* ---------- storefront branding editor ---------- */
 function brandEditorHTML(s) {
@@ -1216,16 +1262,20 @@ function renderProductThumbs() {
 function pfRemoveImg(i) { const a = pfImgs(); a.splice(i, 1); pfSetImgs(a); }
 function pfAddUrl() { const el = document.getElementById('pf-url'); const v = (el.value || '').trim(); if (!v) return; pfSetImgs([...pfImgs(), v]); el.value = ''; }
 function saveProduct(f, pid) {
-  const s = mySeller();
+  const s = mySeller(); if (!s) return;
+  const title = f.title.value.trim();
+  if (!title) { toast('Give the listing a title.', 'err'); return; }
+  const price = Math.round((parseFloat(f.price.value) || 0) * 100);
+  if (price < 100) { toast('Price must be at least $1.', 'err'); return; }
   const specs = {};
   for (let i = 0; i < 4; i++) { const k = f['sk' + i]?.value.trim(), v = f['sv' + i]?.value.trim(); if (k && v) specs[k] = v; }
   const fits = allBikes().filter(b => f['fit_' + b.id]?.checked).map(b => b.id);
   let imgs = []; try { imgs = JSON.parse(f.imgs.value || '[]'); } catch (e) {}
   imgs = imgs.filter(Boolean).slice(0, 10);
   const base = {
-    title: f.title.value, cat: f.cat.value, cond: f.cond.value, brand: f.brand.value || '—',
-    price: Math.round(parseFloat(f.price.value) * 100), ship: Math.round(parseFloat(f.ship.value) * 100),
-    qty: parseInt(f.qty.value), universal: f.universal.checked, fits, specs, desc: f.desc.value,
+    title, cat: f.cat.value, cond: f.cond.value, brand: f.brand.value.trim() || '—',
+    price, ship: Math.max(0, Math.round((parseFloat(f.ship.value) || 0) * 100)),
+    qty: Math.max(0, parseInt(f.qty.value) || 0), universal: f.universal.checked, fits, specs, desc: f.desc.value.trim(),
     img: imgs[0] || null, imgs: imgs.length ? imgs : null,
   };
   if (pid) Object.assign(productById(pid), base);
@@ -1264,10 +1314,15 @@ function openCodeForm() {
     <button class="btn btn-primary">Create code</button><p style="font-size:.75rem;color:var(--ink3)">Codes stay private — share them in your own promos. They still work at checkout.</p></form></div>`);
 }
 function saveCode(f) {
-  const s = mySeller(); const type = f.type.value;
-  const value = type === 'percent' ? Math.min(100, +f.value.value) : Math.round(parseFloat(f.value.value) * 100);
-  DB.codes.push({ id: uid('c'), sellerId: s.id, code: f.code.value.toUpperCase(), type, value, min: Math.round((+f.min.value || 0) * 100), max: f.max.value ? +f.max.value : null, uses: 0, expires: null, active: true });
-  save(); closeModal(); render(); toast(`<b>${f.code.value.toUpperCase()}</b> is live — share it in your promos.`);
+  const s = mySeller(); if (!s) return;
+  const code = f.code.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!code) { toast('Code must be letters and numbers.', 'err'); return; }
+  if (DB.codes.some(c => c.sellerId === s.id && c.code === code)) { toast(`<b>${esc(code)}</b> already exists — disable or reuse that one.`, 'err'); return; }
+  const type = f.type.value;
+  const value = type === 'percent' ? Math.max(1, Math.min(100, Math.round(+f.value.value) || 0)) : Math.round((parseFloat(f.value.value) || 0) * 100);
+  if (value <= 0) { toast('Discount value must be positive.', 'err'); return; }
+  DB.codes.push({ id: uid('c'), sellerId: s.id, code, type, value, min: Math.max(0, Math.round((+f.min.value || 0) * 100)), max: f.max.value ? Math.max(1, +f.max.value) : null, uses: 0, expires: null, active: true });
+  save(); closeModal(); render(); toast(`<b>${esc(code)}</b> is live — share it in your promos.`);
 }
 function toggleCode(cid) { const c = DB.codes.find(x => x.id === cid); c.active = !c.active; save(); render(); }
 
@@ -1329,7 +1384,8 @@ function doReject(id, f) {
 }
 function reapplyAfterReject(appId) { DB.applications = DB.applications.filter(a => a.id !== appId); save(); render(); }
 function resolveReport(id, status) {
-  const r = DB.reports.find(x => x.id === id); r.status = status; r.resolvedTs = Date.now();
+  const r = DB.reports.find(x => x.id === id); if (!r || r.status !== 'open') return;
+  r.status = status; r.resolvedTs = Date.now();
   r.resolution = status === 'resolved' ? 'Handled by trust team (demo).' : 'Reviewed — no policy violation found.';
   if (status === 'resolved') {
     const s = sellerById(r.sellerId), u = userById(r.reporterId);
