@@ -95,7 +95,8 @@ function modal(html, lg = false) {
   document.body.style.overflow = 'hidden';
 }
 function closeModal() { $('#modal-root').innerHTML = ''; document.body.style.overflow = ''; }
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeDrawer(); } });
+// Escape closes the innermost layer first (modal, then drawer) — never both at once.
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (document.querySelector('.modal-overlay')) closeModal(); else closeDrawer(); } });
 const modalHead = (title) => `<div class="modal-head"><h3>${title}</h3><button class="modal-x" onclick="closeModal()">${icon('x')}</button></div>`;
 
 /* ---------- drawer ---------- */

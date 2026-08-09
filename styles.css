@@ -624,3 +624,15 @@ input[type=color]{width:46px;height:34px;padding:2px;border:1.5px solid var(--li
   .pd-price{font-size:1.55rem}
   .wrap{padding:0 .9rem}
 }
+
+/* ── interaction craft (Notion doctrine, 2026-08-07) ─────────────────────── */
+/* tabular numerals: digits align, columns never wiggle */
+.p-price,.pd-price,.totals,.fee-out b,.stat b,.table td,.cart-line b,.drawer-foot b,.rs-score b,.count,.p-ship{font-variant-numeric:tabular-nums}
+/* forgiving click zones: hit area exceeds the visual box */
+.wish,.qty button,.star-input button,.modal-x,.pd-thumb{position:relative}
+.wish::after,.modal-x::after{content:"";position:absolute;inset:-8px}
+.qty button::after{content:"";position:absolute;inset:-7px -3px}
+.star-input button::after{content:"";position:absolute;inset:-6px -2px}
+/* ghost teaching rows: empty tables show what WILL be there */
+tr.ghost td{opacity:.45;font-style:italic}
+tr.ghost .badge{opacity:.7}
