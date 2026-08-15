@@ -372,13 +372,19 @@ input[type=color]{width:46px;height:34px;padding:2px;border:1.5px solid var(--li
 @media (prefers-reduced-motion:reduce){.ft{animation:none!important;display:none}}
 
 /* ---------- skeleton loading ---------- */
-.sk{background:linear-gradient(100deg,#e7e7ea 25%,#f4f4f7 50%,#e7e7ea 75%);background-size:200% 100%;animation:sksh 1.15s linear infinite;border-radius:10px}
+/* Skeleton weight discipline (synced from the app 2026-08-15): large surfaces
+   sit LIGHTER than small ones, shimmer is slow and low-contrast — a loading
+   state should read as "content coming", not a wall of grey slabs. */
+.sk{background:linear-gradient(100deg,#ececef 30%,#f6f6f8 50%,#ececef 70%);background-size:200% 100%;animation:sksh 1.6s linear infinite;border-radius:8px}
 @keyframes sksh{0%{background-position:200% 0}100%{background-position:-200% 0}}
 .sk-card{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
-.sk-img{aspect-ratio:4/3;border-radius:0}
-.sk-pad{padding:.7rem .8rem 1rem}
-.sk-line{height:12px;margin-bottom:.45rem;border-radius:6px}
+.sk-img{aspect-ratio:4/3;border-radius:0;background:linear-gradient(100deg,#f1f1f4 30%,#fafafb 50%,#f1f1f4 70%);background-size:200% 100%}
+.sk-pad{padding:.75rem .85rem .95rem}
+.sk-line{height:10px;margin-bottom:.5rem;border-radius:999px}
+.sk-line:last-child{margin-bottom:0}
 .sk-line.w80{width:80%}.sk-line.w50{width:50%}.sk-line.w40{width:40%}
+.sk-price{height:14px;width:34%;border-radius:999px;margin-top:.7rem}
+.sk-fade{animation:fadeIn .35s var(--ease) both}
 
 /* reviews */
 .review{border-bottom:1px solid var(--line);padding:1rem 0}
