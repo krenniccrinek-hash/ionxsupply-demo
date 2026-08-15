@@ -710,7 +710,7 @@ function addToCart(pid, qty = 1) {
   if (p.qty <= 0) { toast('Out of stock.', 'err'); return; }
   if (cur + qty > p.qty) { toast(`Only ${p.qty} in stock${cur ? ` — you already have ${cur} in your cart` : ''}.`, 'err'); return; }
   if (ex) ex.qty += qty; else cart.items.push({ pid, qty });
-  save(); renderNav(); showCartDrawer();
+  save(); renderNav(); showCartDrawer(); bumpCartBadge();
   toast(`<b>Added:</b> ${esc(p.title.slice(0, 40))}${p.title.length > 40 ? '…' : ''}`);
 }
 /* Drop vanished/suspended/out-of-stock items and clamp quantities to live stock.
@@ -873,9 +873,16 @@ function viewSuccess(seg) {
   const orders = DB.orders.filter(o => o.groupId === seg[1] && o.buyerId === (me() || {}).id);
   if (!orders.length) return notFound();
   const total = orders.reduce((s, o) => s + o.total, 0);
+  // THE confetti moment (elevation port) — once per checkout group.
+  viewSuccess._fired = viewSuccess._fired || {};
+  if (!viewSuccess._fired[seg[1]]) {
+    viewSuccess._fired[seg[1]] = true;
+    setTimeout(celebrateOrder, 180);
+  }
   return `<div class="wrap" style="max-width:640px"><div class="empty" style="padding-top:3rem">
-    <div class="big">🎉</div><h1 style="color:var(--navy)">Order confirmed!</h1>
-    <p style="margin:.4rem 0 1.4rem">${orders.length > 1 ? `One payment of <b>${money(total)}</b>, split across ${orders.length} sellers.` : `<b>${money(total)}</b> paid.`} Confirmation "sent" to ${esc(me().email)} (demo).</p></div>
+    <div class="success-ring" aria-hidden><svg viewBox="0 0 24 24"><path d="m5 13 5 5L20 7"/></svg></div>
+    <div class="stagger"><h1 style="color:var(--navy)">Order confirmed!</h1>
+    <p style="margin:.4rem 0 1.4rem">${orders.length > 1 ? `One payment of <b>${money(total)}</b>, split across ${orders.length} sellers.` : `<b>${money(total)}</b> paid.`} Confirmation "sent" to ${esc(me().email)} (demo).</p></div></div>
     ${orders.map(o => `<div class="cart-group"><div class="cart-group-head"><b><a href="#/s/${sellerById(o.sellerId).slug}" style="color:inherit">${esc(sellerById(o.sellerId).name)}</a></b><span class="badge badge-verified" style="margin-left:auto">Paid</span></div>
       ${o.items.map(i => `<div class="cart-line" style="border:none;padding:.35rem 0"><span style="flex:1;font-size:.9rem">${i.qty}× ${esc(i.title)}</span><b>${money(i.price * i.qty)}</b></div>`).join('')}
       <div class="totals">${o.discount ? `<div class="row disc"><span>Discount</span><span>−${money(o.discount)}</span></div>` : ''}<div class="row"><span>Order total${o.shipping ? ' (incl. shipping)' : ''}</span><span>${money(o.total)}</span></div></div></div>`).join('')}
@@ -913,11 +920,12 @@ function orderCard(o) {
 function fastForward(oid) {
   const o = DB.orders.find(x => x.id === oid);
   o.status = 'shipped'; o.shippedTs = Date.now(); o.tracking = 'USPS 9400 DEMO ' + Math.floor(Math.random() * 1e10);
-  save(); render(); toast('<b>Shipped!</b> (simulated) Tracking added.');
+  save(); render(); celebratePayout();
+  toast(`<b>Payout released — ${money(o.total - o.fee)}</b> (simulated) Tracking added.`);
 }
 function confirmDelivered(oid) {
   const o = DB.orders.find(x => x.id === oid);
-  o.status = 'delivered'; o.deliveredTs = Date.now(); save(); render();
+  o.status = 'delivered'; o.deliveredTs = Date.now(); save(); render(); celebrateAt(null);
   toast('<b>Delivered ✓</b> You can now review the seller.');
 }
 function openReview(oid) {
@@ -1041,7 +1049,8 @@ function openShip(oid) {
 function doShip(f, oid) {
   const o = DB.orders.find(x => x.id === oid);
   o.status = 'shipped'; o.shippedTs = Date.now(); o.tracking = f.carrier.value + ' ' + f.tn.value;
-  save(); closeModal(); render(); toast('<b>Shipped ✓</b> Buyer notified (demo).');
+  save(); closeModal(); render(); celebratePayout();
+  toast(`<b>Payout released — ${money(o.total - o.fee)}</b> Buyer notified (demo).`);
 }
 function joinDropAlerts(f) {
   const email = (f.querySelector('input').value || '').trim(); if (!email) return;

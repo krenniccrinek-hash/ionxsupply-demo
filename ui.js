@@ -125,3 +125,53 @@ function countUp(el, target, prefix = '', suffix = '') {
 
 /* nav scroll shadow */
 window.addEventListener('scroll', () => { const n = $('.nav'); if (n) n.classList.toggle('scrolled', scrollY > 8); }, { passive: true });
+
+/* ---------- celebration layer (design-elevation port from the app, 2026-08-15) ----------
+   Mirrors app/src/lib/celebrate.ts. confetti.js (canvas-confetti) is vendored
+   locally; every call is reduced-motion-safe and no-ops if the lib is absent. */
+const CELE_SUCCESS = ['#17181a', '#52565c', '#b8bcc2', '#ffffff', '#22c55e', '#4ade80'];
+const CELE_MONEY = ['#f5b431', '#fbbf24', '#22c55e', '#17181a', '#ffffff'];
+const CELE_COMMON = { disableForReducedMotion: true, zIndex: 200 };
+function celeOff() {
+  return typeof confetti === 'undefined' || matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+/* THE order-success moment: side cannons sweeping in, then a center pop. */
+function celebrateOrder() {
+  if (celeOff()) return;
+  const end = Date.now() + 900;
+  (function frame() {
+    confetti({ ...CELE_COMMON, particleCount: 3, angle: 60, spread: 58, startVelocity: 52, origin: { x: 0, y: .72 }, colors: CELE_SUCCESS });
+    confetti({ ...CELE_COMMON, particleCount: 3, angle: 120, spread: 58, startVelocity: 52, origin: { x: 1, y: .72 }, colors: CELE_SUCCESS });
+    if (Date.now() < end) requestAnimationFrame(frame);
+  })();
+  setTimeout(() => confetti({ ...CELE_COMMON, particleCount: 90, spread: 100, startVelocity: 34, scalar: .9, ticks: 210, origin: { x: .5, y: .42 }, colors: CELE_SUCCESS }), 250);
+}
+/* THE payout beat (escrow release = getting paid): gold + emerald coin shower. */
+function celebratePayout() {
+  if (celeOff()) return;
+  confetti({ ...CELE_COMMON, particleCount: 70, spread: 70, startVelocity: 42, scalar: 1.05, gravity: 1.15, ticks: 240, origin: { x: .5, y: .5 }, colors: CELE_MONEY });
+  setTimeout(() => {
+    confetti({ ...CELE_COMMON, particleCount: 40, angle: 60, spread: 55, origin: { x: .12, y: .6 }, colors: CELE_MONEY });
+    confetti({ ...CELE_COMMON, particleCount: 40, angle: 120, spread: 55, origin: { x: .88, y: .6 }, colors: CELE_MONEY });
+  }, 220);
+}
+/* Small burst anchored to an element (delivered, approvals, add-to-cart pops). */
+function celebrateAt(el, colors = CELE_SUCCESS) {
+  if (celeOff()) return;
+  let origin = { x: .5, y: .55 };
+  if (el && el.getBoundingClientRect) {
+    const r = el.getBoundingClientRect();
+    origin = {
+      x: Math.min(.98, Math.max(.02, (r.left + r.width / 2) / innerWidth)),
+      y: Math.min(.98, Math.max(.02, (r.top + r.height / 2) / innerHeight)),
+    };
+  }
+  confetti({ ...CELE_COMMON, particleCount: 34, spread: 65, startVelocity: 24, scalar: .75, ticks: 130, origin, colors });
+}
+/* Cart badge bounce — call after renderNav() when the count grew. */
+function bumpCartBadge() {
+  const b = $('.cart-count');
+  if (!b) return;
+  b.classList.add('bump');
+  setTimeout(() => b.classList.remove('bump'), 500);
+}
