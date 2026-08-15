@@ -637,8 +637,4 @@ input[type=color]{width:46px;height:34px;padding:2px;border:1.5px solid var(--li
 tr.ghost td{opacity:.45;font-style:italic}
 tr.ghost .badge{opacity:.7}
 
-/* mobile: falling tiles stay visual-only — taps pass through (2026-08-14) */
-@media (max-width:768px){
-  .hero-fall{pointer-events:none}
-  .hero-fall .ft{width:84px!important}
-}
+/* mobile falling tiles: fully interactive, same as desktop (Mateo 2026-08-14) */
