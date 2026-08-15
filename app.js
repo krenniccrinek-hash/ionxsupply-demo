@@ -216,13 +216,13 @@ function openAuth(mode = 'in') {
       <div style="display:flex;gap:.5rem;flex-wrap:wrap">
         <button class="btn btn-outline btn-sm" onclick="personaLogin('u_buyer')">👤 Buyer demo</button>
         <button class="btn btn-outline btn-sm" onclick="personaLogin('u_seller')">🏪 Seller demo</button>
-        <button class="btn btn-outline btn-sm" onclick="personaLogin('u_admin')">🛡️ Admin demo</button>
       </div></div></div>`);
 }
-function personaLogin(id) { loginAs(userById(id)); }
+function personaLogin(id) { const u = userById(id); if (!u || u.role === 'admin') return; loginAs(u); }
 function doLogin(f) {
   const u = DB.users.find(x => x.email.toLowerCase() === f.email.value.toLowerCase());
   if (!u || u.pw !== btoa(f.pw.value)) { $('#auth-err').innerHTML = '<div class="form-err">Wrong email or password. Try a demo shortcut below.</div>'; return; }
+  if (u.role === 'admin') { $('#auth-err').innerHTML = '<div class="form-err">Admin access is disabled in this demo.</div>'; return; }
   loginAs(u);
 }
 function doSignup(f) {
