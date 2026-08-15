@@ -40,7 +40,14 @@ const BIKES = [
   { id: 'super73rx',  brand: 'Super73',     model: 'RX',                cls: 'Class 2' },
   { id: 'super73s2',  brand: 'Super73',     model: 'S2',                cls: 'Class 2' },
   { id: 'surron',     brand: 'Sur-Ron',     model: 'Light Bee X',       cls: 'E-moto' },
+  { id: 'ultrabee',   brand: 'Sur-Ron',     model: 'Ultra Bee',         cls: 'E-moto' },
   { id: 'talaria',    brand: 'Talaria',     model: 'Sting R MX4',       cls: 'E-moto' },
+  { id: 'talariamx5', brand: 'Talaria',     model: 'MX5',               cls: 'E-moto' },
+  { id: 'talariaxxx', brand: 'Talaria',     model: 'XXX',               cls: 'E-moto' },
+  { id: 'tuttio',     brand: 'Tuttio',      model: '(all models)',      cls: 'Class 2' },
+  { id: 'yozma',      brand: 'Yozma',       model: '(all models)',      cls: 'Class 2' },
+  { id: 'heybike',    brand: 'Heybike',     model: '(all models)',      cls: 'Class 2' },
+  { id: 'freegox2',   brand: 'FreeGo',      model: 'X2 Pro',            cls: 'Class 2' },
   { id: 'arielgriz',  brand: 'Ariel Rider', model: 'Grizzly',           cls: 'Class 2' },
   { id: 'himiway',    brand: 'Himiway',     model: 'Cobra Pro',         cls: 'Class 2' },
   { id: 'quietkat',   brand: 'QuietKat',    model: 'Apex',              cls: 'Class 2' },
@@ -93,7 +100,7 @@ const SELLER_COLORS = {
 function seedDB() {
   const now = Date.now(), day = 864e5;
   return {
-    v: 1,
+    v: 2, // bump forces a localStorage reseed (new bikes, 2026-08-15)
     session: null,
     users: [
       { id: 'u_buyer',  email: 'buyer@demo.com',  pw: btoa('demo1234'), name: 'Jordan Rivera', role: 'buyer',  wishlist: ['p_bbshd','p_pack52'], cart: { items: [], codes: {} }, tos: true },

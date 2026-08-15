@@ -304,7 +304,21 @@ function viewHome() {
     <section class="section"><div class="section-head reveal"><div><h2>Shop by category</h2></div></div>
       <div class="grid grid-cats">${CATS.map(c => `<div class="cat-tile reveal" data-cat="${c.id}" onclick="go('#/search?cat=${c.id}')"><div class="ic">${icon(c.icon)}</div><b>${c.name}</b><small>${c.blurb}</small></div>`).join('')}</div></section>
     <section class="section"><div class="section-head reveal"><div><h2>Shop by bike</h2><p>Parts filtered to what actually fits</p></div></div>
-      <div class="hero-chips" style="justify-content:flex-start">${allBikesSorted().map(b => `<button class="chip reveal" onclick="go('#/bike/${b.id}')">${b.brand} ${b.model}</button>`).join('')}</div></section>
+      <div class="bike-groups">${(() => {
+        // Grouped by brand; on mobile each brand collapses to a tap-open row
+        // (CSS checkbox disclosure — ported from the production app 2026-08-15).
+        const byBrand = new Map();
+        for (const b of allBikesSorted()) { const a = byBrand.get(b.brand) ?? []; a.push(b); byBrand.set(b.brand, a); }
+        return [...byBrand.keys()].sort((a, b) => a.localeCompare(b)).map(brand => {
+          const gid = 'bg-' + brand.replace(/\W+/g, '-').toLowerCase();
+          const models = byBrand.get(brand);
+          return `<div class="bike-group">
+            <input type="checkbox" id="${gid}" class="bg-toggle" aria-hidden="true">
+            <label for="${gid}" class="bike-group-brand">${esc(brand)}<span class="bg-count">${models.length}</span><span class="bg-chev" aria-hidden="true">▾</span></label>
+            <div class="hero-chips bike-chips" style="justify-content:flex-start">${models.map(b => `<button class="chip" onclick="go('#/bike/${b.id}')">${esc(b.model)}</button>`).join('')}</div>
+          </div>`;
+        }).join('');
+      })()}</div></section>
     <section class="section"><div class="band reveal"><h2>Turn your parts bin into a storefront.</h2>
       <p>Your own shop at <b>yourname.ionxsupply.example</b>, discount codes, dashboards and payouts — we take 10% only when you sell.</p>
       <div class="stats"><div><b data-count="${DB.products.reduce((s, p) => s + p.sold, 0)}"></b><span>parts sold</span></div><div><b data-count="${DB.reviews.length}"></b><span>verified reviews</span></div><div><b>10%</b><span>flat fee, listing is free</span></div></div>
@@ -623,7 +637,7 @@ function viewSell() {
     <div class="step-card"><div class="num">2</div><b>Verify & connect payouts</b><p>Stripe identity check + bank connection. You're the merchant; we handle checkout and protection.</p></div>
     <div class="step-card"><div class="num">3</div><b>List & sell</b><p>Photos, specs, fitment tags, your own codes. Listing is free — we take 10% only when you sell.</p></div></div>
   <section class="section"><div class="browse cols-even">
-    <div class="fee-calc reveal"><h3 style="margin-bottom:.3rem">What you'd keep</h3><p style="font-size:.85rem;color:var(--ink3)">Drag your monthly parts sales:</p>
+    <div class="fee-calc reveal"><h3 style="margin-bottom:.3rem">What you'd keep</h3><p style="font-size:.85rem;color:var(--ink3)">Can't be bothered doing the math? Same. Drag the slider — it passed 4th grade so you don't have to:</p>
       <input type="range" min="100" max="10000" value="1500" step="100" oninput="feeCalc(this.value)">
       <div class="fee-out"><span>Monthly sales</span><b id="fc-gross">$1,500</b></div>
       <div class="fee-out"><span>IonxSupply fee (10%)</span><b id="fc-fee">−$150</b></div>
