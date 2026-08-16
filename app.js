@@ -637,7 +637,7 @@ function viewSell() {
     <div class="step-card"><div class="num">2</div><b>Verify & connect payouts</b><p>Stripe identity check + bank connection. You're the merchant; we handle checkout and protection.</p></div>
     <div class="step-card"><div class="num">3</div><b>List & sell</b><p>Photos, specs, fitment tags, your own codes. Listing is free — we take 10% only when you sell.</p></div></div>
   <section class="section"><div class="browse cols-even">
-    <div class="fee-calc reveal"><h3 style="margin-bottom:.3rem">What you'd keep</h3><p style="font-size:.85rem;color:var(--ink3)">Can't be bothered doing the math? Same. Drag the slider — it passed 4th grade so you don't have to:</p>
+    <div class="fee-calc reveal"><h3 style="margin-bottom:.3rem">What you'd keep</h3><p style="font-size:.85rem;color:var(--ink3)">Can't do the math? Just drag it:</p>
       <input type="range" min="100" max="10000" value="1500" step="100" oninput="feeCalc(this.value)">
       <div class="fee-out"><span>Monthly sales</span><b id="fc-gross">$1,500</b></div>
       <div class="fee-out"><span>IonxSupply fee (10%)</span><b id="fc-fee">−$150</b></div>
