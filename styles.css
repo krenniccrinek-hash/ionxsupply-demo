@@ -134,7 +134,7 @@ footer a:hover{color:#fff;text-decoration:underline}
 .btn .spinner{width:15px;height:15px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
 
 /* ---------- layout ---------- */
-.wrap{max-width:1200px;margin:0 auto;padding:0 1.25rem}
+.wrap{max-width:1200px;margin:0 auto;padding:0 1.25rem;width:100%}
 .section{padding:2.6rem 0}
 .section-head{display:flex;align-items:end;justify-content:space-between;gap:1rem;margin-bottom:1.3rem}
 .section-head h2{font-size:1.45rem;font-weight:700;color:var(--navy)}
