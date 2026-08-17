@@ -582,6 +582,7 @@ function viewStore(seg, q) {
         ${s.website ? `<div class="store-domain" style="margin-top:.2rem"><a class="store-web" href="${esc(s.website)}" target="_blank" rel="noopener nofollow">🔗 ${esc(s.website.replace(/^https?:\/\//, ''))} <span style="font-size:.85em">↗</span></a></div>` : ''}
       </div>
       <div class="store-actions"><button class="btn btn-danger btn-sm" onclick="openReport('${s.id}')">${icon('flag')} Report seller</button></div></div>
+    ${socialStripHTML(s)}
     <div class="tabs">
       <button class="${tab === 'items' ? 'active' : ''}" onclick="go('#/s/${s.slug}?tab=items')">Items (${items.length})</button>
       <button class="${tab === 'reviews' ? 'active' : ''}" onclick="go('#/s/${s.slug}?tab=reviews')">Reviews (${reviews.length})</button>
@@ -592,7 +593,6 @@ function viewStore(seg, q) {
       ${items.length ? `<div class="grid grid-products">${items.map(pCard).join('')}</div>` : '<div class="empty">No items listed right now.</div>'}` : ''}
     ${tab === 'reviews' ? (reviews.length ? reviewSummary(reviews) : '') + storeReviewFormHTML(s) + (reviews.length ? reviews.map(reviewRow).join('') : '<div class="empty" style="padding:1rem 0">No reviews yet — be the first.</div>') : ''}
     ${tab === 'about' ? `<div class="panel" style="max-width:640px"><p style="color:var(--ink2)">${esc(s.bio)}</p><p style="margin-top:.8rem;font-size:.83rem;color:var(--ink3)">All sales run through IonxSupply checkout with buyer protection. Payouts to sellers via Stripe. <a href="#/legal/refunds">How protection works</a></p></div>` : ''}
-    ${socialStripHTML(s)}
   </div>`;
 }
 // Seller social cards (2026-08-16) — mirrors the app's <SocialStrip>, which
@@ -625,8 +625,9 @@ function socialStripHTML(s) {
       <span class="sbadge ${tone}">${SOCIAL_GLYPHS[tone]}</span>
       <span class="social-txt"><span class="nm">${name}</span><span class="hd">${esc(socialHandle(k, socials[k]))}</span></span></a>`);
   if (!cards.length) return '';
-  return `<div class="section-head" style="margin-top:1.6rem"><h2 style="font-size:1.1rem">Find ${esc(s.name)} everywhere</h2></div>
-    <div class="social-strip">${cards.join('')}</div>`;
+  // Sits between the shop header and the tabs (Mateo 2026-08-16: "above the
+  // items reviews and about"), compact so it reads as a strip, not a section.
+  return `<div class="social-strip">${cards.join('')}</div>`;
 }
 
 function openReport(sellerId) {
