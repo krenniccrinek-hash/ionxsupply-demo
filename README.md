@@ -1,6 +1,6 @@
 # IonxSupply — e-motive parts marketplace (demo)
 
-**Live demo:** https://krenniccrinek-hash.github.io/volthub-demo/
+**Live demo:** https://krenniccrinek-hash.github.io/ionxsupply-demo/
 
 A fully client-side simulation of IonxSupply, a multi-seller marketplace for e-bike / e-scooter / e-moto parts. Everything runs in your browser with `localStorage` — no backend, no real payments, sample data only.
 
