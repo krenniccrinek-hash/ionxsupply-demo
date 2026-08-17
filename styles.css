@@ -698,3 +698,32 @@ tr.ghost .badge{opacity:.7}
 .bike-group .bg-toggle:checked ~ .bike-group-brand{border-color:var(--navy);box-shadow:var(--shadow-sm)}
 .bike-group .bg-toggle:checked ~ .bike-group-brand .bg-chev{transform:rotate(180deg)}
 @media (max-width:600px){.bike-groups{grid-template-columns:1fr;gap:.5rem}}
+
+/* ===== seller social strip — mirrors the app (Crinek marketplace hover) ===== */
+.social-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-top:.4rem}
+.social-card{display:flex;align-items:center;gap:18px;border:1px solid var(--line);border-radius:18px;padding:20px 22px;background:#fff;color:inherit;text-decoration:none;transition:transform .35s var(--ease),background .35s var(--ease),box-shadow .35s var(--ease),border-color .35s var(--ease),color .35s var(--ease)}
+.sbadge{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .35s var(--ease),background .35s var(--ease)}
+.sbadge svg{width:24px;height:24px;fill:#fff}
+.sbadge.yt{background:#FF0000}
+.sbadge.ig{background:radial-gradient(circle at 30% 110%,#FDF497 0%,#FD5949 45%,#D6249F 60%,#285AEB 90%)}
+.sbadge.tt{background:#010101}
+.sbadge.fb{background:#1877F2}
+.sbadge.web{background:var(--navy)}
+.social-txt{display:flex;flex-direction:column;min-width:0}
+.social-card .nm{font-weight:600;font-size:1rem;line-height:1.3}
+.social-card .hd{font-size:.82rem;color:var(--ink3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:color .35s var(--ease)}
+.social-card:hover{transform:translateY(-5px);color:#fff;border-color:transparent;box-shadow:0 24px 44px -18px rgba(11,11,12,.35)}
+.social-card:hover .sbadge{transform:scale(1.08) rotate(-4deg);background:#fff}
+.social-card:hover .hd{color:rgba(255,255,255,.85)}
+.social-card.yt:hover{background:#FF0000}
+.social-card.ig:hover{background:radial-gradient(circle at 30% 110%,#FDF497 0%,#FD5949 45%,#D6249F 60%,#285AEB 90%)}
+.social-card.tt:hover{background:#010101}
+.social-card.fb:hover{background:#1877F2}
+.social-card.web:hover{background:var(--navy)}
+.social-card.yt:hover .sbadge svg{fill:#FF0000}
+.social-card.ig:hover .sbadge svg{fill:#D6249F}
+.social-card.tt:hover .sbadge svg{fill:#010101}
+.social-card.fb:hover .sbadge svg{fill:#1877F2}
+.social-card.web:hover .sbadge svg{fill:var(--navy)}
+@media (hover:none){.social-card:hover{transform:none;color:inherit;background:#fff;border-color:var(--line);box-shadow:none}.social-card:hover .sbadge{transform:none}.social-card:hover .hd{color:var(--ink3)}}
+@media (prefers-reduced-motion:reduce){.social-card,.sbadge{transition:none}.social-card:hover{transform:none}.social-card:hover .sbadge{transform:none}}

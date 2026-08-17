@@ -592,8 +592,43 @@ function viewStore(seg, q) {
       ${items.length ? `<div class="grid grid-products">${items.map(pCard).join('')}</div>` : '<div class="empty">No items listed right now.</div>'}` : ''}
     ${tab === 'reviews' ? (reviews.length ? reviewSummary(reviews) : '') + storeReviewFormHTML(s) + (reviews.length ? reviews.map(reviewRow).join('') : '<div class="empty" style="padding:1rem 0">No reviews yet — be the first.</div>') : ''}
     ${tab === 'about' ? `<div class="panel" style="max-width:640px"><p style="color:var(--ink2)">${esc(s.bio)}</p><p style="margin-top:.8rem;font-size:.83rem;color:var(--ink3)">All sales run through IonxSupply checkout with buyer protection. Payouts to sellers via Stripe. <a href="#/legal/refunds">How protection works</a></p></div>` : ''}
+    ${socialStripHTML(s)}
   </div>`;
 }
+// Seller social cards (2026-08-16) — mirrors the app's <SocialStrip>, which
+// ports the Crinek marketplace hover: lift, flood with the brand colour, badge
+// inverts to white and tilts.
+const SOCIAL_GLYPHS = {
+  yt: '<svg viewBox="0 0 24 24"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8zM9.6 15.6V8.4L15.8 12z"/></svg>',
+  ig: '<svg viewBox="0 0 24 24"><path d="M12 2.2c3.2 0 3.6 0 4.8.1 1.2.1 1.9.2 2.3.4.6.2 1 .5 1.4.9.4.4.7.8.9 1.4.2.4.4 1.1.4 2.3.1 1.2.1 1.6.1 4.8s0 3.6-.1 4.8c-.1 1.2-.2 1.9-.4 2.3-.2.6-.5 1-.9 1.4-.4.4-.8.7-1.4.9-.4.2-1.1.4-2.3.4-1.2.1-1.6.1-4.8.1s-3.6 0-4.8-.1c-1.2-.1-1.9-.2-2.3-.4a3.9 3.9 0 0 1-1.4-.9 3.9 3.9 0 0 1-.9-1.4c-.2-.4-.4-1.1-.4-2.3C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.8c.1-1.2.2-1.9.4-2.3.2-.6.5-1 .9-1.4.4-.4.8-.7 1.4-.9.4-.2 1.1-.4 2.3-.4C8.4 2.2 8.8 2.2 12 2.2zm0 5.1a4.9 4.9 0 1 1 0 9.8 4.9 4.9 0 0 1 0-9.8zm0 8.1a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4zm6.2-8.3a1.1 1.1 0 1 1-2.3 0 1.1 1.1 0 0 1 2.3 0z"/></svg>',
+  tt: '<svg viewBox="0 0 24 24"><path d="M19.6 6.7a5.5 5.5 0 0 1-3.4-3.6c-.1-.4-.2-.9-.2-1.3h-3.7v14.6a3.1 3.1 0 0 1-3.1 3 3.1 3.1 0 0 1-1.4-.3 3.1 3.1 0 0 1 1.4-5.9c.3 0 .6 0 .9.1V9.5a6.8 6.8 0 0 0-.9-.1 6.9 6.9 0 1 0 6.9 6.9V9.9a9.2 9.2 0 0 0 5.2 1.6V7.8s-1 0-1.7-.4a5.5 5.5 0 0 1 0-.7z"/></svg>',
+  fb: '<svg viewBox="0 0 24 24"><path d="M24 12a12 12 0 1 0-13.9 11.9v-8.4h-3V12h3V9.4c0-3 1.8-4.7 4.6-4.7 1.3 0 2.7.2 2.7.2v3h-1.5c-1.5 0-2 .9-2 1.9V12h3.3l-.5 3.5h-2.8v8.4A12 12 0 0 0 24 12z"/></svg>',
+  web: '<svg viewBox="0 0 24 24"><path d="M12 1.5a10.5 10.5 0 1 0 0 21 10.5 10.5 0 0 0 0-21zm7.3 9.6h-3.4a16.6 16.6 0 0 0-1.5-6.5 8.6 8.6 0 0 1 4.9 6.5zM12 3.5c.9 1.1 1.8 3.6 2 7.6h-4c.2-4 1.1-6.5 2-7.6zM4.7 11.1a8.6 8.6 0 0 1 4.9-6.5 16.6 16.6 0 0 0-1.5 6.5H4.7zm0 1.8h3.4a16.6 16.6 0 0 0 1.5 6.5 8.6 8.6 0 0 1-4.9-6.5zm7.3 7.6c-.9-1.1-1.8-3.6-2-7.6h4c-.2 4-1.1 6.5-2 7.6zm2.4-1.1a16.6 16.6 0 0 0 1.5-6.5h3.4a8.6 8.6 0 0 1-4.9 6.5z"/></svg>',
+};
+const SOCIAL_ORDER = [
+  ['instagram', 'Instagram', 'ig'], ['tiktok', 'TikTok', 'tt'],
+  ['youtube', 'YouTube', 'yt'], ['facebook', 'Facebook', 'fb'], ['website', 'Website', 'web'],
+];
+function socialHandle(key, url) {
+  try {
+    const u = new URL(url);
+    if (key === 'website') return u.hostname.replace(/^www\./, '');
+    const seg = u.pathname.split('/').filter(Boolean).pop() || u.hostname.replace(/^www\./, '');
+    return seg.startsWith('@') ? seg : '@' + seg;
+  } catch { return url; }
+}
+function socialStripHTML(s) {
+  const socials = Object.assign({}, s.socials || {}, s.website ? { website: s.website } : {});
+  const cards = SOCIAL_ORDER
+    .filter(([k]) => typeof socials[k] === 'string' && /^https?:\/\//i.test(socials[k]))
+    .map(([k, name, tone], i) => `<a class="social-card ${tone}" style="transition-delay:${i * 70}ms" href="${esc(socials[k])}" target="_blank" rel="noopener noreferrer nofollow ugc" aria-label="${name}">
+      <span class="sbadge ${tone}">${SOCIAL_GLYPHS[tone]}</span>
+      <span class="social-txt"><span class="nm">${name}</span><span class="hd">${esc(socialHandle(k, socials[k]))}</span></span></a>`);
+  if (!cards.length) return '';
+  return `<div class="section-head" style="margin-top:1.6rem"><h2 style="font-size:1.1rem">Find ${esc(s.name)} everywhere</h2></div>
+    <div class="social-strip">${cards.join('')}</div>`;
+}
+
 function openReport(sellerId) {
   if (!requireAuth()) return;
   if (mySeller() && mySeller().id === sellerId) { toast(`That's your own shop.`, 'err'); return; }
